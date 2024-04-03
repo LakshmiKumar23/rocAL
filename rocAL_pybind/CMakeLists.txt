@@ -212,7 +212,7 @@ if(${BUILD_ROCAL_PYBIND})
     set(LINK_LIBRARY_LIST ${LINK_LIBRARY_LIST} ${TurboJpeg_LIBRARIES})
     # rocAL
     set(LINK_LIBRARY_LIST ${LINK_LIBRARY_LIST} rocal)
-    include_directories(../rocAL/src/api/include/)
+    include_directories(../rocAL/include/)
     # Python3	
     include_directories(${Python3_INCLUDE_DIRS})	
     message("-- ${Green}NOTE: rocAL pybind requires Python3, Found --  ${Python3_EXECUTABLE} ${ColourReset}")	

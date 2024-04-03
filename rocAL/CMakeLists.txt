@@ -226,7 +226,7 @@ if(${BUILD_ROCAL})
 
     include_directories(
                 ${CMAKE_CURRENT_BINARY_DIR}
-                src/api/include/
+                include/
                 src/augmentations/
                 src/augmentations/color_augmentations/
                 src/augmentations/effects_augmentations/
@@ -331,15 +331,15 @@ if(${BUILD_ROCAL})
     if(BUILD_DEV)
         # install rocAL include files -- {ROCM_PATH}/include/rocAL/
         install(FILES
-                src/api/include/rocal_api.h
-                src/api/include/rocal_api_info.h
-                src/api/include/rocal_api_augmentation.h
-                src/api/include/rocal_api_data_loaders.h
-                src/api/include/rocal_api_types.h
-                src/api/include/rocal_api_data_transfer.h
-                src/api/include/rocal_api_parameters.h
-                src/api/include/rocal_api_meta_data.h
-                src/api/include/rocal_api_tensor.h
+                include/rocal_api.h
+                include/rocal_api_info.h
+                include/rocal_api_augmentation.h
+                include/rocal_api_data_loaders.h
+                include/rocal_api_types.h
+                include/rocal_api_data_transfer.h
+                include/rocal_api_parameters.h
+                include/rocal_api_meta_data.h
+                include/rocal_api_tensor.h
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rocal
         )
     endif(BUILD_DEV)
