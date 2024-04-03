@@ -43,11 +43,11 @@ find_package(StdFilesystem QUIET)
 find_package(HALF QUIET)
 
 if(DEFINED ENV{ROCM_PATH})
-  set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "Default ROCm installation path")
+    set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "Default ROCm installation path")
 elseif(ROCM_PATH)
-  message("-- INFO:ROCM_PATH Set -- ${ROCM_PATH}")
+    message("-- INFO:ROCM_PATH Set -- ${ROCM_PATH}")
 else()
-  set(ROCM_PATH /opt/rocm CACHE PATH "Default ROCm installation path")
+    set(ROCM_PATH /opt/rocm CACHE PATH "Default ROCm installation path")
 endif()
 
 # HIP Backend
@@ -226,23 +226,23 @@ if(${BUILD_ROCAL})
 
     include_directories(
                 ${CMAKE_CURRENT_BINARY_DIR}
-                include/api/
-                include/augmentations/
-                include/augmentations/color_augmentations/
-                include/augmentations/effects_augmentations/
-                include/augmentations/geometry_augmentations/
-                include/decoders/image/
-                include/decoders/video/
-                include/decoders/libjpeg/
-                include/device/
-                include/loaders/
-                include/loaders/image/
-                include/loaders/video/
-                include/meta_data/
-                include/parameters/
-                include/pipeline/
-                include/readers/image/
-                include/readers/video/
+                src/api/include/
+                src/augmentations/
+                src/augmentations/color_augmentations/
+                src/augmentations/effects_augmentations/
+                src/augmentations/geometry_augmentations/
+                src/decoders/image/
+                src/decoders/video/
+                src/decoders/libjpeg/
+                src/device/
+                src/loaders/
+                src/loaders/image/
+                src/loaders/video/
+                src/meta_data/
+                src/parameters/
+                src/pipeline/
+                src/readers/image/
+                src/readers/video/
     )
 
     link_directories(${ROCM_PATH}/${CMAKE_INSTALL_LIBDIR})
@@ -258,7 +258,7 @@ if(${BUILD_ROCAL})
     protobuf_generate_cpp(CAFFE_PROTO_SRCS CAFFE_PROTO_HEADERS proto/caffe_protos.proto)
     link_directories(${AMDRPP_LIBRARIES_DIRS} ${PROTOBUF_LIBRARY_DIRS} /usr/local/lib/)
 
-    file(GLOB_RECURSE SOURCES "source/*.cpp")
+    file(GLOB_RECURSE SOURCES "src/*.cpp")
     add_library(${PROJECT_NAME} SHARED ${SOURCES} ${TF_PROTO_SRCS} ${TF_PROTO_HEADERS} ${CAFFE_PROTO_HEADERS} ${CAFFE_PROTO_SRCS} ${CAFFE2_PROTO_SRCS} ${CAFFE2_PROTO_HEADERS})
 
     if("${BACKEND}" STREQUAL "HIP" AND HIP_FOUND)
@@ -293,7 +293,7 @@ if(${BUILD_ROCAL})
         if(${OpenCV_VERSION_MAJOR} EQUAL 4)
             target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OPENCV_4=1)
         else()
-	        target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OPENCV_4=0)
+            target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OPENCV_4=0)
         endif()
     else()
         target_compile_definitions(${PROJECT_NAME} PUBLIC ENABLE_OPENCV=0)
@@ -331,15 +331,15 @@ if(${BUILD_ROCAL})
     if(BUILD_DEV)
         # install rocAL include files -- {ROCM_PATH}/include/rocAL/
         install(FILES
-                include/api/rocal_api.h
-                include/api/rocal_api_info.h
-                include/api/rocal_api_augmentation.h
-                include/api/rocal_api_data_loaders.h
-                include/api/rocal_api_types.h
-                include/api/rocal_api_data_transfer.h
-                include/api/rocal_api_parameters.h
-                include/api/rocal_api_meta_data.h
-		include/api/rocal_api_tensor.h
+                src/api/include/rocal_api.h
+                src/api/include/rocal_api_info.h
+                src/api/include/rocal_api_augmentation.h
+                src/api/include/rocal_api_data_loaders.h
+                src/api/include/rocal_api_types.h
+                src/api/include/rocal_api_data_transfer.h
+                src/api/include/rocal_api_parameters.h
+                src/api/include/rocal_api_meta_data.h
+                src/api/include/rocal_api_tensor.h
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rocal
         )
     endif(BUILD_DEV)
