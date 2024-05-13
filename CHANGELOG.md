@@ -10,7 +10,12 @@
 
 ### Added
 
-* Packages - dev & test
+* Packages - dev & tests
+* Support for audio loader and decoder, which uses libsndfile library to decode wav files
+* C++ rocAL audio unit test and python script to run and compare the outputs
+* Python support for audio decoders
+* Pytorch iterator for Audio
+* Python audio unit test, and support to verify outputs
 
 ### Optimizations
 
@@ -41,7 +46,8 @@
 * OpenCV - [4.6.0](https://github.com/opencv/opencv/releases/tag/4.6.0)
 * Turbo JPEG - [Version 3.0.1](https://libjpeg-turbo.org/)
 * PyBind11 - [v2.10.4](https://github.com/pybind/pybind11)
-* rocAL Setup Script - `V2.0.0`
+* libsndfile - [1.0.31](https://github.com/libsndfile/libsndfile/releases/tag/1.0.31)
+* rocAL Setup Script - `V2.0.1`
 * Dependencies for all the above packages
 
 ### Known issues
