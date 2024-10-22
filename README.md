@@ -80,7 +80,7 @@ rocAL can be currently used to perform the following operations either with rand
   sudo apt install rpp-dev
   ```
 
-* MIVisionX Components: [AMD OpenVX&trade;](https://github.com/ROCm/MIVisionX/tree/master/amd_openvx) and AMD OpenVX&trade; Extensions: `VX_RPP` and `AMD Media`
+* [MIVisionX](https://github.com/ROCm/MIVisionX) Components: [AMD OpenVX&trade;](https://github.com/ROCm/MIVisionX/tree/master/amd_openvx) and AMD OpenVX&trade; Extensions: `VX_RPP` and `AMD Media`
   ```shell
   sudo apt install mivisionx-dev
   ```
@@ -112,7 +112,7 @@ rocAL can be currently used to perform the following operations either with rand
 
 * Python Wheel
   ```shell
-  pip install wheel
+  pip3 install wheel
   ```
 
 * [PyBind11](https://github.com/pybind/pybind11)
@@ -137,7 +137,6 @@ rocAL can be currently used to perform the following operations either with rand
   sudo apt install libopencv-dev
   ```
 
-
 > [!IMPORTANT] 
 > * Compiler features required
 >   * OpenMP
@@ -152,11 +151,10 @@ For your convenience, we provide the setup script,[rocAL-setup.py](https://githu
 
 ```shell
 python rocAL-setup.py --directory [setup directory - optional (default:~/)]
-                      --opencv    [OpenCV Version - optional (default:4.6.0)]
-                      --pybind11  [PyBind11 Version - optional (default:v2.10.4)]
-                      --reinstall [Reinstall - optional (default:OFF)[options:ON/OFF]]
-                      --backend   [rocAL Dependency Backend - optional (default:HIP) [options:OCL/HIP]]
                       --rocm_path [ROCm Installation Path - optional (default:/opt/rocm)]
+                      --backend   [rocAL Dependency Backend - optional (default:HIP) [options:OCL/HIP]]
+                      --ffmpeg    [FFMPEG Installation - optional (default:OFF)[options:ON/OFF]]
+                      --reinstall [Reinstall - optional (default:OFF)[options:ON/OFF]]
 ```
 
 ## Installation instructions
@@ -167,7 +165,8 @@ The installation process uses the following steps:
 
 * Install ROCm `6.1.0` or later with [amdgpu-install](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/amdgpu-install.html) with `--usecase=rocm`
 
-* Use **either** [package install](#package-install) **or** [source install](#source-install) as described below.
+>[!IMPORTANT]
+> Use **either** [package install](#package-install) **or** [source install](#source-install) as described below.
 
 ### Package install
 
@@ -195,9 +194,12 @@ Install rocAL runtime, development, and test packages.
   sudo zypper install rocal rocal-devel rocal-test
   ```
 
->[!NOTE]
-> * Package install requires `TurboJPEG`, `PyBind 11` and `Protobuf`  manual install
+>[!IMPORTANT]
+> * Package install requires `TurboJPEG`, and `RapidJSON` manual install
 > * `CentOS`/`RedHat`/`SLES` requires additional `FFMPEG Dev` package manual install
+> * rocAL Python module: To use python module, you can set PYTHONPATH:
+>   + `export PYTHONPATH=/opt/rocm/lib:$PYTHONPATH`
+
 
 ### Source install
 
@@ -209,7 +211,8 @@ To build rocAL from source and install, follow the steps below:
 git clone https://github.com/ROCm/rocAL.git
 ```
 
-  **Note:** rocAL has support for two GPU backends: **OPENCL** and **HIP**:
+>[!NOTE] 
+> rocAL has support for two GPU backends: **OPENCL** and **HIP**:
 
 #### HIP Backend
 
@@ -231,7 +234,7 @@ git clone https://github.com/ROCm/rocAL.git
   ```
 >[!NOTE]
 > * `PyPackageInstall` used for rocal_pybind installation
-> * `sudo` required for pybind installation
+
 
 >[!IMPORTANT]
 > * Use `-D PYTHON_VERSION_SUGGESTED=3.x` with `cmake` for using a specific Python3 version if required.
@@ -258,19 +261,45 @@ git clone https://github.com/ROCm/rocAL.git
 * The installer will copy
   * Executables into `/opt/rocm/bin`
   * Libraries into `/opt/rocm/lib`
+  * rocal_pybind into `/opt/rocm/lib`
   * Header files into `/opt/rocm/include/rocal`
   * Apps, & Samples folder into `/opt/rocm/share/rocal`
   * Documents folder into `/opt/rocm/share/doc/rocal`
 
 ### Verify with rocal-test package
 
-Test package will install ctest module to test rocAL. Follow below steps to test packge install
+Test package will install ctest module to test rocAL. Follow below steps to test package install
 
 ```shell
 mkdir rocAL-test && cd rocAL-test
 cmake /opt/rocm/share/rocal/test/
 ctest -VV
 ```
+>[!NOTE]
+> * Make sure all rocAL required libraries are in your PATH
+> * `RHEL`/`SLES` - Export FFMPEG libraries into your PATH 
+>     + `export LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64/:/usr/local/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH` 
+> ```shell
+> export PATH=$PATH:/opt/rocm/bin
+> export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib
+> ```
+
+### Verify rocAL PyBind with rocal-test package
+
+Test package will install ctest module to test rocAL PyBindings. Follow below steps to test package install
+
+```shell
+mkdir rocal-pybind-test && cd rocal-pybind-test
+cmake /opt/rocm/share/rocal/test/pybind
+ctest -VV
+```
+>[!NOTE]
+> * Make sure all rocAL required libraries are in your PATH
+> ```shell
+> export PATH=$PATH:/opt/rocm/bin
+> export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib
+> export PYTHONPATH=/opt/rocm/lib:$PYTHONPATH
+> ```
 
 ## Documentation
 
@@ -313,12 +342,12 @@ Review all notable [changes](CHANGELOG.md#changelog) with the latest release
 * ROCm: rocm-core - `6.1.0.60100-64`
 * RPP - `rpp` & `rpp-dev`/`rpp-devel`
 * MIVisionX - `mivisionx` & `mivisionx-dev`/`mivisionx-devel`
-* rocDecode - `rocdecode` & `rocdecode-dev`/`rocdecode-devel`
 * Protobuf - `libprotobuf-dev`/`protobuf-devel`
 * RapidJSON - `https://github.com/Tencent/rapidjson`
 * Turbo JPEG - [Version 3.0.2](https://libjpeg-turbo.org/)
 * PyBind11 - [v2.11.1](https://github.com/pybind/pybind11)
 * FFMPEG - `ffmpeg` dev package
-* OpenCV - [4.6.0](https://github.com/opencv/opencv/releases/tag/4.6.0)
-* rocAL Setup Script - `V2.1.0`
+* OpenCV - `libopencv-dev` / [4.6.0](https://github.com/opencv/opencv/releases/tag/4.6.0)
+* libsndfile - [1.0.31](https://github.com/libsndfile/libsndfile/releases/tag/1.0.31)
+* rocAL Setup Script - `V2.6.0`
 * Dependencies for all the above packages
