@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "rocal_api_data_transfer.h"
 #include "rocal_api_meta_data.h"
 #include "rocal_api_info.h"
+#include "rocal_api_memory.h"
 
 #define ROCAL_INVALID_CONTEXT_EXCEPTION(p_context) \
     do {                                           \

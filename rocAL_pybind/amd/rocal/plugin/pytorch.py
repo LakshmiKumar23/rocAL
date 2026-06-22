@@ -43,7 +43,7 @@ class ROCALGenericIterator(object):
         @param device_id           The ID of the device to use
     """
 
-    def __init__(self, pipeline, tensor_layout=types.NCHW, reverse_channels=False, multiplier=[1.0, 1.0, 1.0], offset=[0.0, 0.0, 0.0], tensor_dtype=types.FLOAT, device="cpu", device_id=0, display=False):
+    def __init__(self, pipeline, tensor_layout=types.NCHW, reverse_channels=False, multiplier=[1.0, 1.0, 1.0], offset=[0.0, 0.0, 0.0], tensor_dtype=types.FLOAT, device="cpu", device_id=0, display=False, use_pytorch_allocator=True):
         self.loader = pipeline
         self.tensor_format = tensor_layout
         self.multiplier = multiplier
@@ -60,6 +60,9 @@ class ROCALGenericIterator(object):
         self.iterator_length = b.getRemainingImages(self.loader._handle)
         self.display = display
         self.batch_size = pipeline._batch_size
+        self._using_pytorch_allocator = False
+        if use_pytorch_allocator and self.device != "cpu":
+            self._setup_pytorch_allocator()
         if self.loader._is_external_source_operator:
             self.eos = False
             self.index = 0
@@ -71,6 +74,32 @@ class ROCALGenericIterator(object):
             self.loader._name = self.loader._reader
         self.last_batch_policy = self.loader._last_batch_policy
         self.last_batch_size = None
+
+    def _setup_pytorch_allocator(self):
+        """Configure rocAL to use PyTorch's HIPCachingAllocator for GPU memory."""
+        if not hasattr(b, 'isPyTorchAllocatorAvailable'):
+            return
+
+        if not b.isPyTorchAllocatorAvailable():
+            import warnings
+            warnings.warn(
+                "rocAL was built without PyTorch allocator support. "
+                "GPU memory will be managed separately, which may cause "
+                "memory fragmentation during training. Rebuild rocAL with "
+                "PyTorch available to enable unified memory management."
+            )
+            return
+
+        try:
+            status = b.enablePyTorchAllocator(self.loader._handle)
+            if status != 0:  # ROCAL_OK
+                import warnings
+                warnings.warn("Failed to enable PyTorch allocator for rocAL")
+                return
+            self._using_pytorch_allocator = True
+        except Exception as e:
+            import warnings
+            warnings.warn(f"Exception enabling PyTorch allocator: {e}")
 
     def next(self):
         return self.__next__()
@@ -240,6 +269,11 @@ class ROCALGenericIterator(object):
         return self.iterator_length // self.batch_size
 
     def __del__(self):
+        if hasattr(self, '_using_pytorch_allocator') and self._using_pytorch_allocator:
+            try:
+                b.disablePyTorchAllocator(self.loader._handle)
+            except Exception:
+                pass  # Ignore cleanup errors during destruction
         b.rocalRelease(self.loader._handle)
 
 
@@ -288,10 +322,12 @@ class ROCALClassificationIterator(ROCALGenericIterator):
                  last_batch_padded=False,
                  display=False,
                  device="cpu",
-                 device_id=0):
+                 device_id=0,
+                 use_pytorch_allocator=True):
         pipe = pipelines
         super(ROCALClassificationIterator, self).__init__(pipe, tensor_layout=pipe._tensor_layout, tensor_dtype=pipe._tensor_dtype,
-                                                          multiplier=pipe._multiplier, offset=pipe._offset, display=display, device=device, device_id=device_id)
+                                                          multiplier=pipe._multiplier, offset=pipe._offset, display=display, device=device, device_id=device_id,
+                                                          use_pytorch_allocator=use_pytorch_allocator)
 
 
 class ROCALAudioIterator(object):

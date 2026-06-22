@@ -91,6 +91,7 @@ class CircularBuffer {
 #if ENABLE_HIP
     hipStream_t _hip_stream;
     int _hip_device_id, _hip_canMapHostMemory;
+    HipAllocator* _allocator = nullptr;
 #endif
     std::vector<void*> _dev_buffer;  // Actual memory allocated on the device (in the case of GPU affinity)
     std::vector<unsigned char*> _host_buffer_ptrs;

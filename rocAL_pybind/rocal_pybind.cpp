@@ -39,6 +39,10 @@ THE SOFTWARE.
 #include "rocal_api_augmentation.h"
 #include "rocal_api_data_transfer.h"
 #include "rocal_api_info.h"
+#include "rocal_api_memory.h"
+#if ENABLE_PYTORCH_ALLOCATOR
+#include <c10/hip/HIPCachingAllocator.h>
+#endif
 namespace py = pybind11;
 
 using float16 = half_float::half;
@@ -1331,5 +1335,43 @@ py::class_<rocalListOfTensorList>(m, "rocalListOfTensorList")
           py::return_value_policy::reference);
     m.def("log", &rocalLog,
           py::return_value_policy::reference);
+
+    // External allocator API
+    m.def("setExternalAllocator", &rocalSetExternalAllocator,
+          "Register an external GPU memory allocator for a rocAL context");
+    m.def("clearExternalAllocator", &rocalClearExternalAllocator,
+          "Clear the external allocator, reverting to default hipMalloc/hipFree");
+    m.def("getHipStream", [](RocalContext context) {
+        return reinterpret_cast<uintptr_t>(rocalGetHipStream(context));
+    }, "Get the HIP stream used by rocAL for GPU operations");
+
+#if ENABLE_PYTORCH_ALLOCATOR
+    m.def("enablePyTorchAllocator", [](RocalContext context) {
+        auto pytorch_alloc = [](size_t size, void* stream, void* user_data) -> void* {
+            hipStream_t hip_stream = static_cast<hipStream_t>(stream);
+            auto& allocator = *c10::hip::HIPCachingAllocator::get();
+            return allocator.raw_alloc_with_stream(size, hip_stream);
+        };
+        auto pytorch_free = [](void* ptr, void* user_data) {
+            if (ptr) {
+                auto& allocator = *c10::hip::HIPCachingAllocator::get();
+                allocator.raw_delete(ptr);
+            }
+        };
+        return rocalSetExternalAllocator(context, pytorch_alloc, pytorch_free, nullptr);
+    }, "Enable PyTorch HIPCachingAllocator for rocAL GPU allocations");
+
+    m.def("disablePyTorchAllocator", [](RocalContext context) {
+        return rocalClearExternalAllocator(context);
+    }, "Disable PyTorch allocator, revert to hipMalloc");
+
+    m.def("isPyTorchAllocatorAvailable", []() {
+        return true;
+    }, "Check if PyTorch allocator support was compiled in");
+#else
+    m.def("isPyTorchAllocatorAvailable", []() {
+        return false;
+    }, "Check if PyTorch allocator support was compiled in");
+#endif
 }
 }  // namespace rocal

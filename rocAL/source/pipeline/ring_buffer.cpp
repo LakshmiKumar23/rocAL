@@ -146,14 +146,21 @@ void RingBuffer::init(RocalMemType mem_type, void *devres, std::vector<size_t> &
             _dev_sub_buffer[buffIdx].resize(sub_buffer_count);
             _dev_roi_buffers[buffIdx].resize(sub_buffer_count);
             for (unsigned sub_idx = 0; sub_idx < sub_buffer_count; sub_idx++) {
-                hipError_t err = hipMalloc(&_dev_sub_buffer[buffIdx][sub_idx], _sub_buffer_size[sub_idx]);
-                // printf("allocated HIP device buffer <%d, %d, %d, %p>\n", buffIdx, sub_idx, _sub_buffer_size[sub_idx], _dev_sub_buffer[buffIdx][sub_idx]);
-                if (err != hipSuccess) {
-                    _dev_sub_buffer.clear();
-                    THROW("hipMalloc of size " + TOSTR(_sub_buffer_size[sub_idx]) + " index " + TOSTR(sub_idx) +
-                          " failed " + TOSTR(err));
+                if (dev_hip->allocator) {
+                    _dev_sub_buffer[buffIdx][sub_idx] = dev_hip->allocator->allocate(_sub_buffer_size[sub_idx]);
+                    if (!_dev_sub_buffer[buffIdx][sub_idx]) {
+                        _dev_sub_buffer.clear();
+                        THROW("Allocator failed to allocate " + TOSTR(_sub_buffer_size[sub_idx]) + " bytes for sub_buffer");
+                    }
+                } else {
+                    hipError_t err = hipMalloc(&_dev_sub_buffer[buffIdx][sub_idx], _sub_buffer_size[sub_idx]);
+                    if (err != hipSuccess) {
+                        _dev_sub_buffer.clear();
+                        THROW("hipMalloc of size " + TOSTR(_sub_buffer_size[sub_idx]) + " index " + TOSTR(sub_idx) +
+                              " failed " + TOSTR(err));
+                    }
                 }
-                err = hipHostMalloc((void **)&_dev_roi_buffers[buffIdx][sub_idx], roi_buffer_size[sub_idx], hipHostMallocDefault);  // Allocate HIP page locked ROI buffers
+                hipError_t err = hipHostMalloc((void **)&_dev_roi_buffers[buffIdx][sub_idx], roi_buffer_size[sub_idx], hipHostMallocDefault);  // Allocate HIP page locked ROI buffers
                 if (err != hipSuccess || !_dev_roi_buffers[buffIdx][sub_idx]) {
                     _dev_roi_buffers.clear();
                     THROW("hipHostMalloc of size " + TOSTR(roi_buffer_size[sub_idx]) + " failed " + TOSTR(err))
@@ -183,17 +190,29 @@ void RingBuffer::initBoxEncoderMetaData(RocalMemType mem_type, size_t encoded_bb
     if (_mem_type == RocalMemType::HIP) {
         if (dev_hip->hip_stream == nullptr || dev_hip->device_id == -1)
             THROW("initBoxEncoderMetaData::Error Hip Device is not initialzed");
-        hipError_t err;
         for (size_t buffIdx = 0; buffIdx < BUFF_DEPTH; buffIdx++) {
-            err = hipMalloc(&_dev_bbox_buffer[buffIdx], encoded_bbox_size);
-            if (err != hipSuccess) {
-                _dev_bbox_buffer.clear();
-                THROW("hipMalloc of size " + TOSTR(encoded_bbox_size) + " failed " + TOSTR(err));
-            }
-            err = hipMalloc(&_dev_labels_buffer[buffIdx], encoded_labels_size);
-            if (err != hipSuccess) {
-                _dev_labels_buffer.clear();
-                THROW("hipMalloc of size " + TOSTR(encoded_bbox_size) + " failed " + TOSTR(err));
+            if (dev_hip->allocator) {
+                _dev_bbox_buffer[buffIdx] = dev_hip->allocator->allocate(encoded_bbox_size);
+                if (!_dev_bbox_buffer[buffIdx]) {
+                    _dev_bbox_buffer.clear();
+                    THROW("Allocator failed to allocate " + TOSTR(encoded_bbox_size) + " bytes for bbox buffer");
+                }
+                _dev_labels_buffer[buffIdx] = dev_hip->allocator->allocate(encoded_labels_size);
+                if (!_dev_labels_buffer[buffIdx]) {
+                    _dev_labels_buffer.clear();
+                    THROW("Allocator failed to allocate " + TOSTR(encoded_labels_size) + " bytes for labels buffer");
+                }
+            } else {
+                hipError_t err = hipMalloc(&_dev_bbox_buffer[buffIdx], encoded_bbox_size);
+                if (err != hipSuccess) {
+                    _dev_bbox_buffer.clear();
+                    THROW("hipMalloc of size " + TOSTR(encoded_bbox_size) + " failed " + TOSTR(err));
+                }
+                err = hipMalloc(&_dev_labels_buffer[buffIdx], encoded_labels_size);
+                if (err != hipSuccess) {
+                    _dev_labels_buffer.clear();
+                    THROW("hipMalloc of size " + TOSTR(encoded_bbox_size) + " failed " + TOSTR(err));
+                }
             }
         }
     }
@@ -260,14 +279,17 @@ void RingBuffer::reset() {
 
 void RingBuffer::release_gpu_res() {
 #if ENABLE_HIP
+    DeviceResourcesHip *dev_hip = static_cast<DeviceResourcesHip *>(_dev);
     if (_mem_type == RocalMemType::HIP) {
         for (size_t buffIdx = 0; buffIdx < _dev_sub_buffer.size(); buffIdx++) {
             for (unsigned sub_buf_idx = 0; sub_buf_idx < _dev_sub_buffer[buffIdx].size(); sub_buf_idx++) {
-                if (_dev_sub_buffer[buffIdx][sub_buf_idx])
-                    if (hipFree((void *)_dev_sub_buffer[buffIdx][sub_buf_idx]) != hipSuccess) {
-                        // printf("Error Freeing device buffer <%d, %d, %p>\n", buffIdx, sub_buf_idx, _dev_sub_buffer[buffIdx][sub_buf_idx]);
+                if (_dev_sub_buffer[buffIdx][sub_buf_idx]) {
+                    if (dev_hip && dev_hip->allocator) {
+                        dev_hip->allocator->deallocate(_dev_sub_buffer[buffIdx][sub_buf_idx]);
+                    } else if (hipFree((void *)_dev_sub_buffer[buffIdx][sub_buf_idx]) != hipSuccess) {
                         ERR("Could not release hip memory in the ring buffer")
                     }
+                }
                 if (_dev_roi_buffers[buffIdx][sub_buf_idx]) {
                     if (hipHostFree((void *)_dev_roi_buffers[buffIdx][sub_buf_idx]) != hipSuccess) {
                         ERR("Could not release hip memory for ROI in the ring buffer")

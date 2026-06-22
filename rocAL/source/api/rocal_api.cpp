@@ -277,3 +277,47 @@ rocalRestoreFromSerializedCheckpoint(RocalContext rocal_context, const char* ser
     }
     return ROCAL_OK;
 }
+
+RocalStatus ROCAL_API_CALL
+rocalSetExternalAllocator(RocalContext rocal_context, RocalAllocFunc alloc_func, RocalFreeFunc free_func, void* user_data) {
+    auto context = static_cast<Context*>(rocal_context);
+    try {
+        if (!alloc_func || !free_func) {
+            THROW("Invalid allocator function pointers")
+        }
+        auto allocator = context->master_graph->allocator();
+        auto hip_stream = context->master_graph->get_hip_stream();
+        allocator->setStream(hip_stream);
+        allocator->setExternalAllocator(alloc_func, free_func, user_data);
+    } catch (const std::exception& e) {
+        context->capture_error(e.what());
+        ERR(e.what())
+        return ROCAL_RUNTIME_ERROR;
+    }
+    return ROCAL_OK;
+}
+
+RocalStatus ROCAL_API_CALL
+rocalClearExternalAllocator(RocalContext rocal_context) {
+    auto context = static_cast<Context*>(rocal_context);
+    try {
+        context->master_graph->allocator()->clearExternalAllocator();
+    } catch (const std::exception& e) {
+        context->capture_error(e.what());
+        ERR(e.what())
+        return ROCAL_RUNTIME_ERROR;
+    }
+    return ROCAL_OK;
+}
+
+void* ROCAL_API_CALL
+rocalGetHipStream(RocalContext rocal_context) {
+    auto context = static_cast<Context*>(rocal_context);
+    try {
+        return context->master_graph->get_hip_stream();
+    } catch (const std::exception& e) {
+        context->capture_error(e.what());
+        ERR(e.what())
+        return nullptr;
+    }
+}

@@ -28,14 +28,17 @@ THE SOFTWARE.
 #include <vx_ext_amd.h>
 #include <VX/vx_types.h>
 #include <memory>
+#include "pipeline/hip_allocator.h"
 
 struct DeviceResourcesHip {
     hipStream_t hip_stream;
     int device_id;
     hipDeviceProp_t dev_prop;
+    HipAllocator* allocator;
     DeviceResourcesHip() {
         hip_stream = nullptr;
         device_id = -1;
+        allocator = nullptr;
     }
 };
 

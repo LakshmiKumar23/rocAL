@@ -193,6 +193,8 @@ MasterGraph::MasterGraph(size_t batch_size, RocalAffinity affinity, size_t cpu_t
         if (_affinity == RocalAffinity::GPU) {
 #if ENABLE_HIP
             _device.init_hip(_context);
+            // Connect the allocator to device resources for components to access
+            _device.resources()->allocator = &_hip_allocator;
 #endif
         }
         ParameterFactory::instance()->set_seed(0);  // Setting default seed for ParameterFactory instance. User can set the seed manually by calling rocalSetSeed(seed_value)
@@ -398,9 +400,13 @@ void MasterGraph::release() {
     // release output buffer if allocated
     if (_output_tensor_buffer != nullptr) {
 #if ENABLE_HIP
-        hipError_t err = hipFree(_output_tensor_buffer);
-        if (err != hipSuccess) {
-            THROW("MasterGraph::deallocate_output_tensor  hipFree failed " + TOSTR(err))
+        if (_hip_allocator.isExternal()) {
+            _hip_allocator.deallocate(_output_tensor_buffer);
+        } else {
+            hipError_t err = hipFree(_output_tensor_buffer);
+            if (err != hipSuccess) {
+                THROW("MasterGraph::deallocate_output_tensor  hipFree failed " + TOSTR(err))
+            }
         }
 #endif
         _output_tensor_buffer = nullptr;
@@ -542,6 +548,16 @@ MasterGraph::mem_type() {
     return _mem_type;
 }
 
+void*
+MasterGraph::get_hip_stream() {
+#if ENABLE_HIP
+    if (_affinity == RocalAffinity::GPU) {
+        return static_cast<void*>(_device.resources()->hip_stream);
+    }
+#endif
+    return nullptr;
+}
+
 size_t
 MasterGraph::last_batch_padded_size() {
     size_t max_last_batch_padded_size = 0;
@@ -632,9 +648,15 @@ MasterGraph::to_tensor(void *out_ptr, RocalTensorlayout format, float multiplier
 
             if (_output_tensor_buffer == nullptr) {
                 size_t size = output_tensor_info.data_size() * (output_data_type == RocalTensorDataType::FP32 ? sizeof(float) : sizeof(half));
-                hipError_t status = hipMalloc(&_output_tensor_buffer, size);
-                if ((status != hipSuccess) || !_output_tensor_buffer)
-                    THROW("ROCAL::hipMalloc of size " + TOSTR(size) + " failed " + TOSTR(status))
+                if (_hip_allocator.isExternal()) {
+                    _output_tensor_buffer = _hip_allocator.allocate(size);
+                    if (!_output_tensor_buffer)
+                        THROW("Allocator failed to allocate " + TOSTR(size) + " bytes for output tensor buffer")
+                } else {
+                    hipError_t status = hipMalloc(&_output_tensor_buffer, size);
+                    if ((status != hipSuccess) || !_output_tensor_buffer)
+                        THROW("ROCAL::hipMalloc of size " + TOSTR(size) + " failed " + TOSTR(status))
+                }
             }
 
             // copy hip buffer to out_ptr

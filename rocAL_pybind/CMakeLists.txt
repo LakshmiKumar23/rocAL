@@ -252,6 +252,31 @@ if(${BUILD_ROCAL_PYBIND})
                 message("-- ${Yellow}NOTE: DLPack Not Found - rocAL Tensorflow and Generic plugins built without GPU support!${ColourReset}")
             endif()
 
+            # PyTorch CachingAllocator integration (optional)
+            # Add PyTorch's cmake path to CMAKE_PREFIX_PATH if torch is installed
+            execute_process(
+                COMMAND "${Python3_EXECUTABLE}" -c "import torch; print(torch.utils.cmake_prefix_path)"
+                OUTPUT_VARIABLE _TORCH_CMAKE_PREFIX
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET
+                RESULT_VARIABLE _torch_prefix_result
+            )
+            if(_torch_prefix_result EQUAL 0 AND _TORCH_CMAKE_PREFIX)
+                list(APPEND CMAKE_PREFIX_PATH "${_TORCH_CMAKE_PREFIX}")
+            endif()
+            find_package(Torch CONFIG QUIET)
+            if(Torch_FOUND AND "${BACKEND}" STREQUAL "HIP")
+                target_compile_definitions(${mod_tgt} PUBLIC ENABLE_PYTORCH_ALLOCATOR=1)
+                target_include_directories(${mod_tgt} PRIVATE ${TORCH_INCLUDE_DIRS})
+                target_link_libraries(${mod_tgt} PRIVATE ${TORCH_LIBRARIES})
+                message("-- ${Green}PyTorch CachingAllocator integration: ENABLED${ColourReset}")
+            else()
+                target_compile_definitions(${mod_tgt} PUBLIC ENABLE_PYTORCH_ALLOCATOR=0)
+                if("${BACKEND}" STREQUAL "HIP")
+                    message("-- ${Yellow}NOTE: PyTorch not found - CachingAllocator integration disabled${ColourReset}")
+                endif()
+            endif()
+
             execute_process(
                 COMMAND "${Python3_EXECUTABLE}" -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"
                 OUTPUT_VARIABLE Python3_EXTENSION_SUFFIX

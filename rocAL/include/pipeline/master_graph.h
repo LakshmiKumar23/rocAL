@@ -56,6 +56,7 @@ THE SOFTWARE.
 #include "rocal_api_types.h"
 #include "pipeline/pipeline_serializer.h"
 #include "pipeline/checkpoint.h"
+#include "pipeline/hip_allocator.h"
 
 #define MAX_STRING_LENGTH 100
 #define MAX_OBJECTS 50                // Setting an arbitrary value 50.(Max number of objects/image in COCO dataset is 93)
@@ -154,6 +155,8 @@ public:
     bool is_sequence_reader_output() { return _is_sequence_reader_output; }
     void set_sequence_reader_output() { _is_sequence_reader_output = true; }
     void set_sequence_batch_size(size_t sequence_length) { _sequence_batch_size = _user_batch_size * sequence_length; }
+    HipAllocator* allocator() { return &_hip_allocator; }
+    void* get_hip_stream();
     TensorListVector * get_bbox_encoded_buffers(size_t num_encoded_boxes);
     void feed_external_input(const std::vector<std::string>& input_images_names, bool labels, const std::vector<unsigned char *>& input_buffer,
                              const std::vector<ROIxywh>& roi_xywh, unsigned int max_width, unsigned int max_height, unsigned int channels, ExternalSourceFileMode mode,
@@ -303,6 +306,7 @@ private:
     int64_t _iteration_number = 0;        //!< Iteration counter used for checkpoint metadata.
     int _tensor_idx = 0; // Index/counter used to uniquely name Tensor instances created in the pipeline
     bool _set_device_id = false;
+    HipAllocator _hip_allocator;  //!< GPU memory allocator supporting external allocator callbacks
 };
 
 template <typename T>

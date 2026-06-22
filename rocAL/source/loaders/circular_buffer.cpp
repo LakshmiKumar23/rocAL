@@ -28,7 +28,10 @@ CircularBuffer::CircularBuffer(void *devres) : _write_ptr(0),
                                                _level(0) {
 #if ENABLE_HIP
     DeviceResourcesHip *hipres = static_cast<DeviceResourcesHip *>(devres);
-    _hip_stream = hipres->hip_stream, _hip_device_id = hipres->device_id, _hip_canMapHostMemory = hipres->dev_prop.canMapHostMemory;
+    _hip_stream = hipres->hip_stream;
+    _hip_device_id = hipres->device_id;
+    _hip_canMapHostMemory = hipres->dev_prop.canMapHostMemory;
+    _allocator = hipres->allocator;
 #endif
 }
 
@@ -159,9 +162,16 @@ void CircularBuffer::init(RocalMemType output_mem_type, size_t output_mem_size, 
                         }
                 } else {
                     // no zero_copy memory available: allocate device memory
-                    hipError_t err = hipMalloc((void **)&_dev_buffer[buffIdx], _output_mem_size);
-                    if (err != hipSuccess) {
-                        THROW("hipMalloc of size " + TOSTR(_output_mem_size) + " failed " + TOSTR(err));
+                    if (_allocator) {
+                        _dev_buffer[buffIdx] = _allocator->allocate(_output_mem_size);
+                        if (!_dev_buffer[buffIdx]) {
+                            THROW("Allocator failed to allocate " + TOSTR(_output_mem_size) + " bytes");
+                        }
+                    } else {
+                        hipError_t err = hipMalloc((void **)&_dev_buffer[buffIdx], _output_mem_size);
+                        if (err != hipSuccess) {
+                            THROW("hipMalloc of size " + TOSTR(_output_mem_size) + " failed " + TOSTR(err));
+                        }
                     }
                 }
             }
@@ -192,10 +202,13 @@ void CircularBuffer::release() {
                     _host_buffer_ptrs[buffIdx] = nullptr;
                 }
                 if (!_use_pinned_memory && _dev_buffer[buffIdx]) {
-                    hipError_t err = hipFree((void *)_dev_buffer[buffIdx]);
-
-                    if (err != hipSuccess)
-                        ERR("Could not release hip memory in the circular buffer " + TOSTR(err))
+                    if (_allocator) {
+                        _allocator->deallocate(_dev_buffer[buffIdx]);
+                    } else {
+                        hipError_t err = hipFree((void *)_dev_buffer[buffIdx]);
+                        if (err != hipSuccess)
+                            ERR("Could not release hip memory in the circular buffer " + TOSTR(err))
+                    }
                     _dev_buffer[buffIdx] = nullptr;
                 }
             } else {
