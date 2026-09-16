@@ -164,7 +164,7 @@ if(${BUILD_ROCAL_PYBIND})
             Python3_SOABI
             Python3_EXTENSION_SUFFIX
             Python3_Interpreter_FOUND
-            Python3_Development_FOUND
+            Python3_Development.Module_FOUND
             Python3_INCLUDE_DIRS
             Python3_LIBRARY
             Python3_LIBRARIES
@@ -177,7 +177,7 @@ if(${BUILD_ROCAL_PYBIND})
 
         set(Python3_FIND_VIRTUALENV FIRST)
 
-        find_package(Python3 "${PY_VERSION}" EXACT QUIET COMPONENTS Interpreter Development)
+        find_package(Python3 "${PY_VERSION}" EXACT QUIET COMPONENTS Interpreter Development.Module)
         set(PYTHON_FOUND_${PY_VERSION} ${Python3_FOUND})
 
         if(NOT PYTHON_FOUND_${PY_VERSION})
